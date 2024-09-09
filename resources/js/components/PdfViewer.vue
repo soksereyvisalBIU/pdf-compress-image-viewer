@@ -19,13 +19,20 @@
 
         <!-- Toolbar -->
         <div class="toolbar">
-            <button @click="zoomIn">Zoom In</button>
-            <button @click="zoomOut">Zoom Out</button>
+            <button @click="zoomIn">
+                <i class="fa-solid fa-magnifying-glass-plus"></i>
+            </button>
+            <button @click="zoomOut">
+                <i class="fa-solid fa-magnifying-glass-minus"></i>
+            </button>
             <!-- <button @click="rotateClockwise">Rotate Clockwise</button>
             <button @click="rotateCounterClockwise">
                 Rotate Counter-Clockwise
             </button> -->
+
+            <button><i class="fa fa-angle-left"></i></button>
             <input v-model="currentPage" type="number" @change="goToPage" />
+            <button><i class="fa fa-angle-right"></i></button>
             <span>/ {{ totalPages }}</span>
         </div>
     </div>
@@ -52,7 +59,7 @@ export default {
             zoom: 1,
             rotation: 0,
             visiblePages: [],
-            pageHeight: 800, // Approximate height of a single page (in pixels)
+            pageHeight: 900, // Approximate height of a single page (in pixels)
             bufferPages: 5, // Number of pages to render above and below the viewport
             lastRequestedPage: 0, // Track the last page we've requested
         };
@@ -293,8 +300,9 @@ export default {
 </script>
 
 <style scoped>
+
 .pdf-viewer {
-    height: 100vh;
+    height: 100dvh;
     overflow-y: auto;
     position: relative;
     width: 100%;
@@ -311,6 +319,8 @@ export default {
     max-width: 100%;
     height: auto;
     transition: transform 0.3s ease;
+    box-shadow: 0px 3px 5px 2px rgba(128, 128, 128, 0.561);
+    margin-block: 10px;
 }
 
 .loading,
@@ -321,7 +331,7 @@ export default {
 
 .toolbar {
     position: fixed;
-    bottom: 20px;
+    top: 20px;
     left: 50%;
     transform: translateX(-50%);
     background-color: rgba(255, 255, 255, 0.8);

@@ -11,7 +11,7 @@
 
 <body style="margin: 0;">
     <div id="app">
-        <pdf-viewer pdf-id="{{ 1 }}"></pdf-viewer>
+        <pdf-viewer pdf-id="Book/PDF/2023/11/1.BusinessConcepts-1695903120.pdf"></pdf-viewer>
     </div>
 </body>
 

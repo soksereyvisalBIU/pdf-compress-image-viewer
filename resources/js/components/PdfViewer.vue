@@ -1,18 +1,8 @@
 <template>
     <div class="pdf-viewer" @scroll="handleScroll" ref="pdfViewer">
         <div class="spacer" :style="{ height: totalHeight + 'px' }"></div>
-        <div
-            v-for="page in visiblePages"
-            :key="page.number"
-            :style="getPageStyle(page)"
-            class="page-container"
-        >
-            <img
-                :src="page.url"
-                :alt="`Page ${page.number}`"
-                class="page-image"
-                :style="imageStyle"
-            />
+        <div v-for="page in visiblePages" :key="page.number" :style="getPageStyle(page)" class="page-container">
+            <img :src="page.url" :alt="`Page ${page.number}`" class="page-image" :style="imageStyle" />
         </div>
         <div v-if="loading" class="loading">Loading more pages...</div>
         <div v-if="noMorePages" class="no-more-pages">End of document</div>
@@ -25,14 +15,7 @@
             <button @click="zoomOut">
                 <i class="fa-solid fa-magnifying-glass-minus"></i>
             </button>
-            <!-- <button @click="rotateClockwise">Rotate Clockwise</button>
-            <button @click="rotateCounterClockwise">
-                Rotate Counter-Clockwise
-            </button> -->
-
-            <button><i class="fa fa-angle-left"></i></button>
             <input v-model="currentPage" type="number" @change="goToPage" />
-            <button><i class="fa fa-angle-right"></i></button>
             <span>/ {{ totalPages }}</span>
         </div>
     </div>
@@ -76,43 +59,70 @@ export default {
     },
     mounted() {
         this.loadMorePages();
-        this.handleScroll(); // Initial call to render visible pages
+        this.$nextTick(() => {
+            this.handleScroll(); // Ensure scroll handler is called after DOM mount
+        });
     },
     methods: {
         async loadMorePages() {
             if (this.loading || this.noMorePages) return;
 
             this.loading = true;
+            const pagesToLoad = 20; // Load 20 pages at a time
+
             try {
-                const response = await axios.get(
-                    `/api/pdf/${this.pdfId}/pages`,
-                    {
-                        params: {
-                            start: this.lastRequestedPage + 1,
-                            count: 20,
-                        },
-                    }
-                );
+                const response = await axios.get(`/api/pdf/${encodeURIComponent(this.pdfId)}/pages`, {
+                    params: {
+                        start: this.lastRequestedPage + 1,
+                        count: 20,
+                    },
+                });
+
+                const newPages = response.data.pages;
+
+                console.log(newPages);
+                
+                this.pages.push(...newPages); // Append new pages
+                this.totalPages = response.data.totalPages;
+
+                if (newPages.length < pagesToLoad) {
+                    this.noMorePages = true; // No more pages to load
+                }
+
+                this.lastRequestedPage = this.pages.length; // Update last page loaded
+                this.updateVisiblePages(); // Update visible pages
+            } catch (error) {
+                console.error("Error loading pages:", error);
+            } finally {
+                this.loading = false;
+            }
+        },
+        async loadPageRange(targetPage) {
+            this.loading = true;
+            const rangeSize = 20; // Define how many pages to load in a batch
+            const startPage = Math.max(1, targetPage - Math.floor(rangeSize / 2));
+            const endPage = Math.min(this.totalPages, startPage + rangeSize - 1);
+
+            try {
+                const response = await axios.get(`/api/pdf/${encodeURIComponent(this.pdfId)}/pages`, {
+                    params: {
+                        start: startPage,
+                        count: rangeSize,
+                    },
+                });
 
                 const newPages = response.data.pages;
                 this.pages.push(...newPages);
-                this.totalPages = response.data.totalPages;
 
-                // console.log("loadmorepage")
-                // console.log(response.data)
+                // Ensure the new pages are appended and update the scroll position
+                this.$nextTick(() => {
+                    this.$refs.pdfViewer.scrollTop = (this.currentPage - 1) * this.pageHeight * this.zoom;
+                });
 
-                if (newPages.length < 20) {
-                    this.noMorePages = true;
-                }
-
-                // Update the last requested page
-                this.lastRequestedPage = this.pages.length;
-
-                // Update visible pages after loading more
-                this.updateVisiblePages();
+                this.updateVisiblePages(); // Update visible pages after loading new range
             } catch (error) {
-                console.error("Error loading pages:", error);
-                alert("Failed to load pages. Please try again later.");
+                console.error("Error loading specific page range:", error);
+                alert("Failed to load the page. Please try again later.");
             } finally {
                 this.loading = false;
             }
@@ -137,17 +147,19 @@ export default {
                 lastVisiblePage + this.bufferPages
             );
 
-            this.visiblePages = this.pages.slice(start, end);
+            // Make sure to filter out undefined pages
+            this.visiblePages = this.pages.slice(start, end).filter(page => page && page.number);
 
             // Find the page closest to the middle of the screen
             const middleOfScreen = scrollTop + containerHeight / 2;
-            let closestPage = this.pages[0];
+            let closestPage = this.pages[0] || {};
             let closestDistance = Math.abs(
-                middleOfScreen -
-                    closestPage.number * this.pageHeight * this.zoom
+                middleOfScreen - (closestPage.number * this.pageHeight * this.zoom)
             );
 
             for (let page of this.pages) {
+                if (!page) continue;  // Ensure page is not undefined
+
                 const pageTop = (page.number - 1) * this.pageHeight * this.zoom;
                 const distance = Math.abs(middleOfScreen - pageTop);
                 if (distance < closestDistance) {
@@ -157,14 +169,15 @@ export default {
             }
 
             // Update the current page number to the closest visible page
-            this.currentPage = closestPage.number;
+            if (closestPage.number) {
+                this.currentPage = closestPage.number;
+            }
 
             // Load more pages when the current page is near the end of the last requested batch
             if (
                 this.currentPage >= this.lastRequestedPage - 5 &&
                 !this.noMorePages
             ) {
-                // console.log("hehe")
                 this.loadMorePages();
             }
         },
@@ -174,61 +187,13 @@ export default {
             const containerHeight = container.clientHeight;
             const scrollHeight = container.scrollHeight;
 
-            // Check if the user has scrolled near the bottom and load more pages
-            if (
-                !this.loading &&
-                !this.noMorePages &&
-                scrollTop + containerHeight >= scrollHeight - 200
-            ) {
-                this.loadMorePages();
+            if (scrollTop + containerHeight >= scrollHeight - 200) {
+                this.loadMorePages(); // Load more pages when nearing the bottom
             }
 
-            this.updateVisiblePages();
+            // Debounced update to avoid recalculating on every pixel of scroll
+            this.debounce(this.updateVisiblePages, 100)();
         },
-
-        // handleScroll() {
-        //     const container = this.$refs.pdfViewer;
-        //     const scrollTop = container.scrollTop;
-        //     const containerHeight = container.clientHeight;
-        //     const scrollHeight = container.scrollHeight;
-
-        //     // Check if the user has scrolled near the bottom and load more pages
-        //     if (
-        //         !this.loading &&
-        //         !this.noMorePages &&
-        //         scrollTop + containerHeight >= scrollHeight - 200
-        //     ) {
-        //         this.loadMorePages();
-        //     }
-        //     else{
-        //         console.log(scrollTop);
-        //     }
-
-        //     this.updateVisiblePages();
-        // },
-        // updateVisiblePages() {
-        //     const container = this.$refs.pdfViewer;
-        //     const scrollTop = container.scrollTop;
-        //     const containerHeight = container.clientHeight;
-
-        //     // Calculate the first and last visible page index
-        //     const firstVisiblePage = Math.floor(
-        //         scrollTop / (this.pageHeight * this.zoom)
-        //     );
-        //     const lastVisiblePage = Math.ceil(
-        //         (scrollTop + containerHeight) / (this.pageHeight * this.zoom)
-        //     );
-
-        //     // Determine which pages to render (including buffer pages)
-        //     const start = Math.max(0, firstVisiblePage - this.bufferPages);
-        //     const end = Math.min(
-        //         this.pages.length,
-        //         lastVisiblePage + this.bufferPages
-        //     );
-
-        //     this.visiblePages = this.pages.slice(start, end);
-        // },
-
         getPageStyle(page) {
             const pageIndex = page.number - 1;
             return {
@@ -240,67 +205,38 @@ export default {
             };
         },
         zoomIn() {
-            this.zoom = Math.min(this.zoom * 1.2, 3); // Limit max zoom level
+            this.zoom = Math.min(this.zoom * 1.2, 3); // Max zoom level
             this.updateVisiblePages(); // Recalculate visible pages after zooming
         },
         zoomOut() {
-            this.zoom = Math.max(this.zoom / 1.2, 0.5); // Limit min zoom level
+            this.zoom = Math.max(this.zoom / 1.2, 0.5); // Min zoom level
             this.updateVisiblePages(); // Recalculate visible pages after zooming
-        },
-        rotateClockwise() {
-            this.rotation = (this.rotation + 90) % 360;
-        },
-        rotateCounterClockwise() {
-            this.rotation = (this.rotation - 90 + 360) % 360;
         },
         goToPage() {
             if (this.currentPage < 1) this.currentPage = 1;
-            if (this.currentPage > this.totalPages)
-                this.currentPage = this.totalPages;
+            if (this.currentPage > this.totalPages) this.currentPage = this.totalPages;
 
-            const targetPage = this.pages.find(
-                (page) => page.number === this.currentPage
-            );
+            const targetPage = this.pages.find((page) => page.number === this.currentPage);
             if (targetPage) {
-                this.$refs.pdfViewer.scrollTop =
-                    (this.currentPage - 1) * this.pageHeight * this.zoom;
+                this.$refs.pdfViewer.scrollTop = (this.currentPage - 1) * this.pageHeight * this.zoom;
             } else {
                 this.loadPageRange(this.currentPage);
             }
         },
-        async loadPageRange(targetPage) {
-            this.loading = true;
-            try {
-                const response = await axios.get(
-                    `/api/pdf/${this.pdfId}/pages`,
-                    {
-                        params: {
-                            start: targetPage,
-                            count: 20,
-                        },
-                    }
-                );
-
-                const newPages = response.data.pages;
-                this.pages = newPages;
-                this.$nextTick(() => {
-                    this.$refs.pdfViewer.scrollTop = 0;
-                });
-
-                this.updateVisiblePages(); // Update visible pages after loading new range
-            } catch (error) {
-                console.error("Error loading specific page range:", error);
-                alert("Failed to load the page. Please try again later.");
-            } finally {
-                this.loading = false;
-            }
+        debounce(fn, delay) {
+            let timeout;
+            return (...args) => {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => fn(...args), delay);
+            };
         },
     },
 };
 </script>
 
-<style scoped>
 
+
+<style scoped>
 .pdf-viewer {
     height: 100dvh;
     overflow-y: auto;

@@ -20,4 +20,9 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PdfController::class, 'index']);
 Route::get('/pdfs/{id}', [PdfController::class, 'show'])->name('pdfs.show');
-Route::get('/api/pdf/{id}/pages', [PdfController::class, 'getPages']);
+// Route::get('/api/pdf/{id}/pages', [PdfController::class, 'getPages']);
+// Route::get('/api/pdf/{bookPDF}/pages', [PdfController::class, 'getPages']);
+Route::get('/api/pdf/{bookPDF}/pages', [PdfController::class, 'getPages']);
+
+// Route::view('/api/pdf/{bookPDF}/pages' , 'welcome');
+

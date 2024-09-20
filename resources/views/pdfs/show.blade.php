@@ -8,14 +8,13 @@
     {{-- @vite(['resources/css/app.css', 'resources/js/app.js']) --}}
     {{-- @vite(['resources/css/app.css', 'resources/js/app.js']) --}}
     @vite('resources/js/app.js')
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"
-        integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg=="
-        crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" integrity="sha512-Kc323vGBEqzTmouAECnVceyQqyqdsSiqLQISBL29aUW4U/M7pSPA/gEUZQqv1cwx4OnYxTxve5UMg5GT6L4JJg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    @vite('resources/js/app.js')
 </head>
 
 <body>
     <div id="app">
-        <pdf-viewer pdf-id="{{ 1 }}"></pdf-viewer>
+        <pdf-viewer pdf-id="Book/PDF/2023/11/1.BusinessConcepts-1695903120.pdf"></pdf-viewer>
     </div>
 </body>
 
